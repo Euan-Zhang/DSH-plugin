@@ -1,0 +1,16 @@
+# DSH 技能管理器（双面包：host + client）。
+#
+# 这一行同时是 host 行（Loader 加载包的 lib/index.js：扫描 ~/.dsh/skills 技能
+# 目录 + 把已启用技能注册成运行时 skill + /api/dsh-skill-manager HTTP API）
+# 和 dsh.client 行（modules 的 node half 扫描 package.json 的 dsh.client 声明，
+# 把 lib/client.js 加入浏览器 roster，在设置页左侧渲染「技能」页）。
+#
+# inject 声明 host 半部的硬依赖：
+# - skills：把每个已启用技能注册成 Agent 可加载的运行时 skill；
+# - webServer：/api/dsh-skill-manager HTTP API 载体。
+# 两者均由 web profile 的 bundle 层提供。
+
+- insert:
+    - id: dsh-skill-manager
+      name: dsh-skill-manager
+      inject: [skills, webServer]
