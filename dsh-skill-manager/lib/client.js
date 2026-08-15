@@ -90,6 +90,8 @@ window.__ModuleLoader__.load({
     function SkillManagerSection() {
       const [skills, setSkills] = useState([]);
       const [tools, setTools] = useState([]);
+      const [connections, setConnections] = useState([]);
+      const [apis, setApis] = useState([]);
       const [editing, setEditing] = useState(null);
       const [error, setError] = useState("");
       const [busy, setBusy] = useState(false);
@@ -105,7 +107,11 @@ window.__ModuleLoader__.load({
 
       useEffect(() => {
         refresh();
-        api("/catalog").then((c) => setTools((c && c.tools) || [])).catch(() => {});
+        api("/catalog").then((c) => {
+          setTools((c && c.tools) || []);
+          setConnections((c && c.connections) || []);
+          setApis((c && c.apis) || []);
+        }).catch(() => {});
       }, []);
 
       const doSave = async (rec, oldName) => {
@@ -196,8 +202,8 @@ window.__ModuleLoader__.load({
 
         const addRef = (type) => {
           let ref;
-          if (type === "tool") ref = { type: "tool", name: (tools[0] && tools[0].name) || "" };
-          else if (type === "database") ref = { type: "database", connection: "", database: "", table: "" };
+          if (type === "tool") ref = { type: "tool", name: (apis[0] && apis[0].toolId) || (tools[0] && tools[0].name) || "" };
+          else if (type === "database") ref = { type: "database", connection: (connections[0] && connections[0].name) || "", database: "", table: "" };
           else ref = { type: "sql", label: "", sql: "" };
           setEditing({ ...rec, refs: (rec.refs || []).concat([ref]) });
         };
@@ -214,23 +220,36 @@ window.__ModuleLoader__.load({
 
         const refEditor = (r, i) => {
           if (r.type === "tool") {
+            // 优先展示 api 插件的工具（显示名称 + toolId），空则回退到全部 Agent 工具名。
+            const apiOptions = apis.filter((a) => a.enabled !== false);
+            const options = apiOptions.length > 0
+              ? apiOptions.map((a) => ({ value: a.toolId, label: a.name + "（" + a.toolId + "）" }))
+              : tools.map((t) => ({ value: t.name, label: t.name }));
             return h("div", { key: i, style: styles.box },
               h("div", { style: styles.refRow },
                 h("span", { style: styles.refTag }, "接口工具"),
-                h("select", { style: { ...styles.input, flex: 1, minWidth: 180 }, value: r.name, onChange: (e) => updateRef(i, "name", e.target.value) },
-                  tools.map((t) => h("option", { key: t.name, value: t.name }, t.name))),
+                h("select", { style: { ...styles.input, flex: 1, minWidth: 200 }, value: r.name, onChange: (e) => updateRef(i, "name", e.target.value) },
+                  h("option", { value: "" }, "（选择接口）"),
+                  options.map((o) => h("option", { key: o.value, value: o.value }, o.label))
+                ),
                 h("button", { style: styles.btnDanger, onClick: () => removeRef(i) }, "删除")
               )
             );
           }
           if (r.type === "database") {
+            const connId = "skm-conn-" + i;
             return h("div", { key: i, style: styles.box },
               h("div", { style: styles.refRow },
-                h("span", { style: styles.refTag }, "数据库表"),
-                h("input", { style: { ...styles.input, flex: 1, minWidth: 120 }, value: r.connection, placeholder: "连接名", onChange: (e) => updateRef(i, "connection", e.target.value) }),
-                h("input", { style: { ...styles.input, flex: 1, minWidth: 100 }, value: r.database, placeholder: "库名（可选）", onChange: (e) => updateRef(i, "database", e.target.value) }),
-                h("input", { style: { ...styles.input, flex: 1, minWidth: 100 }, value: r.table, placeholder: "表名（可选）", onChange: (e) => updateRef(i, "table", e.target.value) }),
+                h("span", { style: styles.refTag }, "数据库连接"),
+                h("select", { style: { ...styles.input, flex: 1, minWidth: 160 }, value: r.connection, onChange: (e) => updateRef(i, "connection", e.target.value) },
+                  h("option", { value: "" }, "（选择连接）"),
+                  connections.map((c) => h("option", { key: c.id || c.name, value: c.name }, c.name + (c.database ? "（默认库 " + c.database + "）" : "")))
+                ),
                 h("button", { style: styles.btnDanger, onClick: () => removeRef(i) }, "删除")
+              ),
+              h("div", { style: styles.refRow },
+                h("input", { style: { ...styles.input, flex: 1, minWidth: 100 }, value: r.database, placeholder: "库名（可选，覆盖默认库）", onChange: (e) => updateRef(i, "database", e.target.value) }),
+                h("input", { style: { ...styles.input, flex: 1, minWidth: 100 }, value: r.table, placeholder: "表名（可选）", onChange: (e) => updateRef(i, "table", e.target.value) })
               )
             );
           }
@@ -274,8 +293,8 @@ window.__ModuleLoader__.load({
           ),
           h("div", { style: styles.field },
             h("label", { style: styles.label }, "技能正文（markdown）"),
-            h("textarea", { style: { ...styles.textarea, minHeight: 120 }, value: rec.content, onChange: set("content"), placeholder: "在这里写技能指令……\n\n可以用 @技能名 引用其他技能。" }),
-            h("div", { style: styles.hint }, "正文注入模型 system prompt；用 @技能名 引用其他技能（被禁用技能不会被引用）。")
+            h("textarea", { style: { ...styles.textarea, minHeight: 140 }, value: rec.content, onChange: set("content"), placeholder: "在这里写技能指令……\n\n可写 @技能名 引用其他技能；@api:工具名 引用接口；@db:连接名 引用数据库；SQL 直接写在正文（配合 @db:连接名 执行）。" }),
+            h("div", { style: styles.hint }, "正文注入模型 system prompt。@技能名=引用其他技能；@api:工具名=引用接口；@db:连接名=引用数据库连接；正文里可直接写 ```sql 代码块查询。" )
           ),
           h("div", { style: styles.field },
             h("div", { style: styles.boxHead },
@@ -300,7 +319,7 @@ window.__ModuleLoader__.load({
               )
             ),
             (rec.refs || []).map(refEditor),
-            h("div", { style: styles.hint }, "引用其他插件的能力（接口工具 / 数据库表 / SQL），渲染时展开成调用指引注入正文。")
+            h("div", { style: styles.hint }, "引用其他插件能力：接口工具（下拉选 api）/ 数据库连接（下拉选连接）/ SQL。等价于在正文里写 @api:工具名 / @db:连接名 / SQL 代码块。")
           ),
           h("div", { style: styles.actions },
             h("button", { style: styles.btn, onClick: () => setEditing(null) }, "取消"),

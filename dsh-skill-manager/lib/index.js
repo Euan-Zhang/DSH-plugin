@@ -307,6 +307,26 @@ function apply(ctx) {
       return blocks.length ? '## 能力引用\n\n' + blocks.join('\n\n') : ''
     }
 
+    // 展开 @api:工具名 —— 引用 api 插件注册的 Agent 工具（注入其完整说明）。
+    function expandApiRefs(text) {
+      return text.replace(/(^|[^a-zA-Z0-9@])@api:([a-z][a-z0-9_]*)/g, (whole, pre, name) => {
+        const t = findTool(name)
+        if (!t || !t.description) return whole
+        return pre + '<api_ref name="' + name + '">\n' + t.description + '\n</api_ref>'
+      })
+    }
+
+    // 展开 @db:连接名 —— 引用 database 插件的连接，注入只读查询指引。
+    function expandDbRefs(text) {
+      return text.replace(/(^|[^a-zA-Z0-9@])@db:([^\s@]+)/g, (whole, pre, name) => {
+        const clean = name.replace(/[，。；、：,.!?）)（("'`]+$/g, '')
+        if (!clean) return whole
+        return pre + '<database_ref name="' + clean + '">\n'
+          + '查询数据库请使用 query_database 工具：connectionName 填 "' + clean + '"，sql 填只读 SQL（仅 SELECT / SHOW / DESCRIBE / EXPLAIN / WITH）。\n'
+          + '</database_ref>'
+      })
+    }
+
     function renderFinalContent(rec, visiting, depth) {
       let text = rec.content
       if (rec.scripts && rec.scripts.length) {
@@ -315,6 +335,9 @@ function apply(ctx) {
       }
       const refText = renderRefs(rec.refs)
       if (refText) text += '\n\n' + refText
+      // 先展开 @api: 与 @db:（显式前缀，避免被技能名正则抢先匹配），再展开 @技能名。
+      text = expandApiRefs(text)
+      text = expandDbRefs(text)
       text = text.replace(/(^|[^a-zA-Z0-9@])@([a-z0-9]+(?:-[a-z0-9]+)*)/g, (whole, pre, name) => {
         const target = state.get(name)
         if (!target || !target.record.enabled || visiting.has(name) || depth >= MAX_REF_DEPTH) return whole
@@ -414,7 +437,28 @@ function apply(ctx) {
           const list = toolsSvc && typeof toolsSvc.schemas === 'function' ? toolsSvc.schemas() : []
           tools = list.map((t) => ({ name: t.name, description: t.description }))
         } catch { /* ignore */ }
-        sendJson(res, 200, { ok: true, tools })
+        // 读 database 插件已保存的连接（脱敏，只留名称/类型/默认库，绝不带密码）。
+        let connections = []
+        try {
+          const settingsSvc = sctx.get('settings')
+          const raw = settingsSvc && typeof settingsSvc.get === 'function' ? settingsSvc.get('database-connections') : undefined
+          const conns = raw && Array.isArray(raw.connections) ? raw.connections : []
+          connections = conns.map((c) => ({
+            name: c.name ?? '',
+            id: c.id ?? '',
+            type: c.type ?? '',
+            database: c.database ?? '',
+          }))
+        } catch { /* database 插件可能未安装 */ }
+        // 读 api 插件已保存的工具（只留 toolId 名称，供 @api: 引用）。
+        let apis = []
+        try {
+          const settingsSvc = sctx.get('settings')
+          const raw = settingsSvc && typeof settingsSvc.get === 'function' ? settingsSvc.get('api-tools') : undefined
+          const list = raw && Array.isArray(raw.tools) ? raw.tools : []
+          apis = list.map((t) => ({ name: t.name ?? '', toolId: t.toolId ?? '', enabled: t.enabled === true }))
+        } catch { /* api 插件可能未安装 */ }
+        sendJson(res, 200, { ok: true, tools, connections, apis })
         return
       }
 
