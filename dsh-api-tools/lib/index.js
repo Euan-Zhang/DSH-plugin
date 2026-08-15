@@ -47,8 +47,8 @@ const ParamSchema = z.object({
   source: z.union(PARAM_SOURCES.map((v) => z.const(v))),
   required: z.boolean(),
   description: z.string(),
-  // 非 agent 来源时使用：fixed=固定值；credential=凭据引用名；default=默认值。
-  value: z.string(),
+  // 默认值：Agent 未提供该字段时使用；fixed=固定值；credential=凭据引用名；default=默认值。
+  defaultValue: z.string(),
   // 子参数：array 的元素对象字段 / object 的字段，递归。
   children: z.array(z.lazy(() => ParamSchema)).default([])
 });
@@ -92,7 +92,7 @@ function readParam(input) {
     source,
     required: record["required"] === true,
     description: typeof record["description"] === "string" ? record["description"] : "",
-    value: typeof record["value"] === "string" ? record["value"] : "",
+    defaultValue: typeof record["defaultValue"] === "string" ? record["defaultValue"] : "",
     children: children.filter((c) => c.name.length > 0)
   };
 }
@@ -243,20 +243,24 @@ function assertCredentialRef(name) {
   }
 }
 
-/** 解析某参数在当前调用中的值（含凭据解析）。 */
+/** 解析某参数在当前调用中的值（含凭据解析与默认值兜底）。 */
 async function resolveParamValue(p, args, sctx) {
   switch (p.source) {
-    case "agent":
-      return coerceValue(args === undefined || args === null ? undefined : args[p.name], p.type);
+    case "agent": {
+      const v = args === undefined || args === null ? undefined : args[p.name];
+      if (v !== undefined && v !== null && v !== "") return coerceValue(v, p.type);
+      // Agent 未提供该字段时，回退到默认值。
+      return p.defaultValue === "" ? undefined : coerceValue(p.defaultValue, p.type);
+    }
     case "fixed":
-      return coerceValue(p.value, p.type);
+      return coerceValue(p.defaultValue, p.type);
     case "credential": {
-      if (!p.value) return undefined;
-      const resolved = await sctx.credentials.resolve(assertCredentialRef(p.value));
+      if (!p.defaultValue) return undefined;
+      const resolved = await sctx.credentials.resolve(assertCredentialRef(p.defaultValue));
       return resolved === undefined ? undefined : coerceValue(resolved.value, p.type);
     }
     case "default":
-      return p.value === "" ? undefined : coerceValue(p.value, p.type);
+      return p.defaultValue === "" ? undefined : coerceValue(p.defaultValue, p.type);
     default:
       return undefined;
   }

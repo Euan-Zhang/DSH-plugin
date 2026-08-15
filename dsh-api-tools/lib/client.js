@@ -66,7 +66,7 @@ window.__ModuleLoader__.load({
         source: "agent",
         required: false,
         description: "",
-        value: "",
+        defaultValue: "",
         children: []
       };
     }
@@ -369,10 +369,8 @@ window.__ModuleLoader__.load({
             h("input", { type: "checkbox", checked: param.required, onChange: (e) => setField({ required: e.target.checked }) })),
           h(ParamField, { label: "中文说明" },
             h("input", { style: styles.tableInput, value: param.description, onChange: (e) => setField({ description: e.target.value }), placeholder: "中文说明" })),
-          h(ParamField, { label: "值" },
-            param.source === "agent"
-              ? h("span", { style: styles.muted }, "—")
-              : h("input", { style: styles.tableInput, value: param.value, onChange: (e) => setField({ value: e.target.value }), placeholder: param.source === "credential" ? "凭据引用名" : "值" })),
+          h(ParamField, { label: "默认值" },
+            h("input", { style: styles.tableInput, value: param.defaultValue, onChange: (e) => setField({ defaultValue: e.target.value }), placeholder: param.source === "credential" ? "凭据引用名" : param.source === "fixed" ? "固定值" : "默认值（Agent 未提供时）" })),
           h("div", { style: { display: "flex", alignItems: "flex-end" } },
             h("button", { type: "button", style: styles.button, onClick: onRemove }, "删除"))
         ]),
@@ -674,6 +672,13 @@ window.__ModuleLoader__.load({
 
     /** 递归生成单条参数的示例值。 */
     function sampleValue(p) {
+      const dv = p.defaultValue;
+      if (dv !== undefined && dv !== "") {
+        if (p.type === "number") { const n = Number(dv); return Number.isFinite(n) ? n : dv; }
+        if (p.type === "boolean") return dv === true || dv === "true" || dv === "1";
+        if (p.type === "object" || p.type === "array") { try { return JSON.parse(dv); } catch { return dv; } }
+        return String(dv);
+      }
       if (p.type === "number") return 1;
       if (p.type === "boolean") return true;
       if (p.type === "object") {
@@ -711,13 +716,14 @@ window.__ModuleLoader__.load({
         const children = (elem !== null && typeof elem === "object" && !Array.isArray(elem))
           ? Object.entries(elem).map(([n, v]) => paramFromJson(n, v, location))
           : [];
-        return { name, location, type: "array", source: "agent", required: true, description: "请补充中文说明", value: "", children };
+        return { name, location, type: "array", source: "agent", required: true, description: "请补充中文说明", defaultValue: "", children };
       }
       if (value !== null && typeof value === "object") {
         const children = Object.entries(value).map(([n, v]) => paramFromJson(n, v, location));
-        return { name, location, type: "object", source: "agent", required: true, description: "请补充中文说明", value: "", children };
+        return { name, location, type: "object", source: "agent", required: true, description: "请补充中文说明", defaultValue: "", children };
       }
-      return { name, location, type: value === null ? "string" : typeof value, source: "agent", required: true, description: "请补充中文说明", value: "", children: [] };
+      const dv = value === null || value === undefined ? "" : String(value);
+      return { name, location, type: value === null ? "string" : typeof value, source: "agent", required: true, description: "请补充中文说明", defaultValue: dv, children: [] };
     }
 
     /** 从 cURL 命令解析 method / url / auth / body 参数。 */
