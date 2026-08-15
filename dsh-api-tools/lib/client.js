@@ -66,7 +66,8 @@ window.__ModuleLoader__.load({
         source: "agent",
         required: false,
         description: "",
-        value: ""
+        value: "",
+        children: []
       };
     }
 
@@ -122,22 +123,24 @@ window.__ModuleLoader__.load({
       field: { display: "flex", flexDirection: "column", gap: 4, marginBottom: 10, minWidth: 0 },
       label: { fontSize: 12, color: "var(--color-text-muted, #57606a)" },
       input: {
-        padding: "6px 8px",
+        padding: "8px 10px",
         borderRadius: 6,
         border: "1px solid var(--color-border, #d0d7de)",
         background: "var(--color-bg, #ffffff)",
         color: "inherit",
-        fontSize: 13,
+        fontSize: 14,
         boxSizing: "border-box",
-        width: "100%"
+        width: "100%",
+        minHeight: 38
       },
       select: {
-        padding: "6px 8px",
+        padding: "8px 10px",
         borderRadius: 6,
         border: "1px solid var(--color-border, #d0d7de)",
         background: "var(--color-bg, #ffffff)",
         color: "inherit",
-        fontSize: 13
+        fontSize: 14,
+        minHeight: 38
       },
       textarea: {
         padding: "6px 8px",
@@ -207,8 +210,8 @@ window.__ModuleLoader__.load({
         background: "var(--color-bg-muted, #f6f8fa)"
       },
       td: { padding: "5px 8px", borderBottom: "1px solid var(--color-border-muted, #eaeef2)", verticalAlign: "middle" },
-      tableInput: { width: "100%", padding: "4px 6px", borderRadius: 5, border: "1px solid var(--color-border, #d0d7de)", background: "var(--color-bg, #ffffff)", color: "inherit", fontSize: 12, boxSizing: "border-box" },
-      tableSelect: { width: "100%", padding: "4px 6px", borderRadius: 5, border: "1px solid var(--color-border, #d0d7de)", background: "var(--color-bg, #ffffff)", color: "inherit", fontSize: 12 },
+      tableInput: { width: "100%", padding: "7px 8px", borderRadius: 5, border: "1px solid var(--color-border, #d0d7de)", background: "var(--color-bg, #ffffff)", color: "inherit", fontSize: 13, boxSizing: "border-box", minHeight: 34 },
+      tableSelect: { width: "100%", padding: "7px 8px", borderRadius: 5, border: "1px solid var(--color-border, #d0d7de)", background: "var(--color-bg, #ffffff)", color: "inherit", fontSize: 13, minHeight: 34 },
       code: {
         fontFamily: "monospace",
         fontSize: 12,
@@ -265,7 +268,7 @@ window.__ModuleLoader__.load({
     }
 
     /** API 工具列表视图。 */
-    function ListView({ tools, onOpen, onNew }) {
+    function ListView({ tools, onOpen, onNew, onDelete }) {
       const [search, setSearch] = useState("");
       const [filter, setFilter] = useState("all");
       const keyword = search.trim().toLowerCase();
@@ -315,10 +318,79 @@ window.__ModuleLoader__.load({
                 ]),
                 h("div", { key: "right", style: styles.row }, [
                   h("span", { style: { ...styles.badge, ...(t.enabled ? styles.badgeEnabled : styles.badgeDraft) } }, t.enabled ? "已启用" : "草稿"),
-                  h("span", { style: styles.button }, "编辑")
+                  h("span", { style: styles.button }, "编辑"),
+                  h("button", { type: "button", style: { ...styles.button, ...styles.danger }, onClick: (e) => { e.stopPropagation(); onDelete(t); } }, "删除")
                 ])
               ]))
             )
+      ]);
+    }
+
+    /** 单个参数字段（label + 控件）。 */
+    function ParamField({ label, children, style }) {
+      return h("div", { style: { ...styles.field, marginBottom: 0, ...style } }, [
+        h("label", { style: styles.label }, label),
+        children
+      ]);
+    }
+
+    /** 递归渲染一个参数块（支持数组/对象的子字段）。 */
+    function ParamBlock({ param, onChange, onRemove, depth }) {
+      const setField = (patch) => onChange({ ...param, ...patch });
+      const canHaveChildren = param.type === "array" || param.type === "object";
+      const children = param.children || [];
+      const setChildren = (next) => onChange({ ...param, children: next });
+      const isNested = depth > 0;
+
+      return h("div", {
+        style: {
+          border: "1px solid var(--color-border-muted, #eaeef2)",
+          borderRadius: 6,
+          padding: 8,
+          marginBottom: 8,
+          ...(isNested ? { marginLeft: 22, background: "var(--color-bg-muted, #f6f8fa)" } : {})
+        }
+      }, [
+        h("div", { style: { display: "grid", gridTemplateColumns: "1.5fr 1fr 0.9fr 1fr", gap: 8, alignItems: "end" } }, [
+          h(ParamField, { label: isNested ? "子字段名" : "参数名称" },
+            h("input", { style: styles.tableInput, value: param.name, onChange: (e) => setField({ name: e.target.value }), placeholder: "字段名" })),
+          h(ParamField, { label: "位置" },
+            h("select", { style: styles.tableSelect, value: param.location, onChange: (e) => setField({ location: e.target.value }) },
+              LOCATIONS.map((o) => h("option", { key: o.value, value: o.value }, o.label)))),
+          h(ParamField, { label: "类型" },
+            h("select", { style: styles.tableSelect, value: param.type, onChange: (e) => setField({ type: e.target.value }) },
+              TYPES.map((o) => h("option", { key: o.value, value: o.value }, o.label)))),
+          h(ParamField, { label: "值来源" },
+            h("select", { style: styles.tableSelect, value: param.source, onChange: (e) => setField({ source: e.target.value }) },
+              SOURCES.map((o) => h("option", { key: o.value, value: o.value }, o.label))))
+        ]),
+        h("div", { style: { display: "grid", gridTemplateColumns: "auto 1.8fr 1.2fr auto", gap: 8, alignItems: "end", marginTop: 8 } }, [
+          h(ParamField, { label: "必填" },
+            h("input", { type: "checkbox", checked: param.required, onChange: (e) => setField({ required: e.target.checked }) })),
+          h(ParamField, { label: "中文说明" },
+            h("input", { style: styles.tableInput, value: param.description, onChange: (e) => setField({ description: e.target.value }), placeholder: "中文说明" })),
+          h(ParamField, { label: "值" },
+            param.source === "agent"
+              ? h("span", { style: styles.muted }, "—")
+              : h("input", { style: styles.tableInput, value: param.value, onChange: (e) => setField({ value: e.target.value }), placeholder: param.source === "credential" ? "凭据引用名" : "值" })),
+          h("div", { style: { display: "flex", alignItems: "flex-end" } },
+            h("button", { type: "button", style: styles.button, onClick: onRemove }, "删除"))
+        ]),
+        canHaveChildren && h("div", { style: { marginTop: 8 } }, [
+          h("div", { style: { ...styles.row, justifyContent: "space-between", marginBottom: 4 } }, [
+            h("span", { style: styles.muted }, param.type === "array" ? "数组元素为对象，配置其子字段：" : "对象的子字段："),
+            h("button", { type: "button", style: styles.button, onClick: () => setChildren([...children, emptyParam()]) }, "添加子字段")
+          ]),
+          children.length === 0
+            ? h("div", { style: styles.muted }, param.type === "array" ? "数组元素若为标量（如字符串数组）可留空。" : "暂无子字段。")
+            : children.map((child, i) => h(ParamBlock, {
+                key: i,
+                param: child,
+                depth: depth + 1,
+                onChange: (next) => setChildren(children.map((c, idx) => (idx === i ? next : c))),
+                onRemove: () => setChildren(children.filter((_c, idx) => idx !== i))
+              }))
+        ])
       ]);
     }
 
@@ -337,39 +409,26 @@ window.__ModuleLoader__.load({
           h("button", { type: "button", style: styles.button, onClick: addParam }, "添加参数")
         ]),
         params.length === 0
-          ? h("div", { style: styles.muted }, "暂无参数。GET 查询通常添加 Query 参数，路径变量使用 Path，POST 提交内容使用 Body。")
-          : h("div", { style: styles.tableWrap },
-              h("table", { style: styles.table }, [
-                h("thead", null, h("tr", null, ["参数名称", "位置", "类型", "值来源", "必填", "中文说明", "值", "操作"].map((x) => h("th", { key: x, style: styles.th }, x)))),
-                h("tbody", null, params.map((p, index) => h("tr", { key: index }, [
-                  h("td", { style: styles.td }, h("input", { style: styles.tableInput, value: p.name, onChange: (e) => setParam(index, { name: e.target.value }), placeholder: "city" })),
-                  h("td", { style: styles.td }, h("select", { style: styles.tableSelect, value: p.location, onChange: (e) => setParam(index, { location: e.target.value }) },
-                    LOCATIONS.map((o) => h("option", { key: o.value, value: o.value }, o.label)))),
-                  h("td", { style: styles.td }, h("select", { style: styles.tableSelect, value: p.type, onChange: (e) => setParam(index, { type: e.target.value }) },
-                    TYPES.map((o) => h("option", { key: o.value, value: o.value }, o.label)))),
-                  h("td", { style: styles.td }, h("select", { style: styles.tableSelect, value: p.source, onChange: (e) => setParam(index, { source: e.target.value }) },
-                    SOURCES.map((o) => h("option", { key: o.value, value: o.value }, o.label)))),
-                  h("td", { style: styles.td }, h("input", { type: "checkbox", checked: p.required, onChange: (e) => setParam(index, { required: e.target.checked }) })),
-                  h("td", { style: styles.td }, h("input", { style: styles.tableInput, value: p.description, onChange: (e) => setParam(index, { description: e.target.value }), placeholder: "城市名称" })),
-                  h("td", { style: styles.td },
-                    p.source === "agent"
-                      ? h("span", { style: styles.muted }, "—")
-                      : h("input", { style: styles.tableInput, value: p.value, onChange: (e) => setParam(index, { value: e.target.value }), placeholder: p.source === "credential" ? "凭据引用名" : "值" })),
-                  h("td", { style: styles.td }, h("button", { type: "button", style: styles.button, onClick: () => removeParam(index) }, "删除"))
-                ])))
-              ])
-            )
+          ? h("div", { style: styles.muted }, "暂无参数。GET 查询通常添加 Query 参数，路径变量使用 Path，POST 提交内容使用 Body。数组/对象参数可展开配置子字段。")
+          : params.map((p, index) => h(ParamBlock, {
+              key: index,
+              param: p,
+              depth: 0,
+              onChange: (next) => setParam(index, next),
+              onRemove: () => removeParam(index)
+            }))
       ]);
     }
 
     /** 编辑器视图。 */
-    function EditorView({ draft, isNew, onDraftChange, onBack, onSaved }) {
+    function EditorView({ draft, isNew, onDraftChange, onBack, onSaved, onDelete }) {
       const [testInput, setTestInput] = useState(() => buildSample(draft));
       const [testResult, setTestResult] = useState(null);
       const [testPassed, setTestPassed] = useState(false);
       const [busy, setBusy] = useState(false);
       const [message, setMessage] = useState(null);
       const [credentialStatus, setCredentialStatus] = useState(null);
+      const [credentialValue, setCredentialValue] = useState("");
       const [mode, setMode] = useState("manual");
       const [curlInput, setCurlInput] = useState("curl -X POST 'https://api.example.com/v1/orders' -H 'Authorization: Bearer demo-token' -H 'Content-Type: application/json' -d '{\"name\":\"测试工单\",\"priority\":\"normal\"}'");
 
@@ -404,6 +463,11 @@ window.__ModuleLoader__.load({
         return errors;
       }, [draft, needsCredential]);
 
+      const persistCredential = useCallback(async () => {
+        if (!needsCredential || !draft.credential.trim() || !credentialValue) return;
+        await api("/credential/set", { name: draft.credential.trim(), value: credentialValue });
+      }, [needsCredential, draft.credential, credentialValue]);
+
       const runTest = useCallback(async () => {
         const errors = validate();
         if (errors.length) { setMessage({ kind: "error", text: errors[0] }); return; }
@@ -413,6 +477,7 @@ window.__ModuleLoader__.load({
         setBusy(true);
         setMessage(null);
         try {
+          await persistCredential();
           const data = await api("/test", { tool: draft, args });
           const result = data.result ?? data;
           setTestResult(result);
@@ -427,7 +492,7 @@ window.__ModuleLoader__.load({
         } finally {
           setBusy(false);
         }
-      }, [draft, testInput, validate]);
+      }, [draft, testInput, validate, persistCredential]);
 
       const save = useCallback(async (enable) => {
         const errors = validate();
@@ -435,6 +500,7 @@ window.__ModuleLoader__.load({
         if (enable && !testPassed) { setMessage({ kind: "error", text: "请先使用当前草稿完成测试" }); return; }
         setBusy(true);
         try {
+          await persistCredential();
           const data = await api("/save", { tool: { ...draft, enabled: enable, id: draft.id } });
           onSaved(data.tools ?? [], enable);
         } catch (e) {
@@ -442,7 +508,7 @@ window.__ModuleLoader__.load({
         } finally {
           setBusy(false);
         }
-      }, [draft, testPassed, validate, onSaved]);
+      }, [draft, testPassed, validate, onSaved, persistCredential]);
 
       const handleParseCurl = useCallback(() => {
         const parsed = parseCurlCommand(curlInput);
@@ -535,10 +601,21 @@ window.__ModuleLoader__.load({
                 style: styles.input,
                 value: draft.credential,
                 disabled: !needsCredential,
-                placeholder: "例如：WEATHER_API_KEY",
+                placeholder: "例如：CMS_API_TOKEN",
                 onChange: (e) => setField({ credential: e.target.value })
               })
             ])
+          ]),
+          needsCredential && h("div", { style: { ...styles.field, marginTop: 8 } }, [
+            h("label", { style: styles.label }, "密钥值（可选，填写后写入 DSH 凭据存储，不进普通配置）"),
+            h("input", {
+              style: styles.input,
+              type: "password",
+              value: credentialValue,
+              placeholder: "例如：1a4f4d8a-495b-4265-b080-509f70a5a27e",
+              autoComplete: "off",
+              onChange: (e) => setCredentialValue(e.target.value)
+            })
           ]),
           h("div", { style: styles.muted },
             needsCredential
@@ -588,19 +665,59 @@ window.__ModuleLoader__.load({
         // 底部操作
         h("div", { style: { ...styles.row, justifyContent: "flex-end", marginTop: 4 } }, [
           h("button", { type: "button", style: styles.button, onClick: onBack }, "取消"),
+          !isNew && h("button", { type: "button", style: { ...styles.button, ...styles.danger }, disabled: busy, onClick: () => onDelete(draft.id) }, "删除"),
           h("button", { type: "button", style: styles.button, disabled: busy, onClick: () => save(false) }, "保存草稿"),
           h("button", { type: "button", style: { ...styles.button, ...styles.primary }, disabled: busy, onClick: () => save(true) }, "保存并启用")
         ])
       ]);
     }
 
+    /** 递归生成单条参数的示例值。 */
+    function sampleValue(p) {
+      if (p.type === "number") return 1;
+      if (p.type === "boolean") return true;
+      if (p.type === "object") {
+        const obj = {};
+        (p.children || []).filter((c) => c.source === "agent" && c.name).forEach((c) => {
+          obj[c.name] = sampleValue(c);
+        });
+        return obj;
+      }
+      if (p.type === "array") {
+        const children = (p.children || []).filter((c) => c.source === "agent" && c.name);
+        if (children.length > 0) {
+          const item = {};
+          children.forEach((c) => { item[c.name] = sampleValue(c); });
+          return [item];
+        }
+        return [];
+      }
+      return `示例${p.description || p.name}`;
+    }
+
     /** 生成示例输入 JSON。 */
     function buildSample(draft) {
       const sample = {};
       (draft.params || []).filter((p) => p.source === "agent" && p.name).forEach((p) => {
-        sample[p.name] = p.type === "number" ? 1 : p.type === "boolean" ? true : p.type === "array" ? [] : p.type === "object" ? {} : `示例${p.description || p.name}`;
+        sample[p.name] = sampleValue(p);
       });
       return JSON.stringify(sample, null, 2);
+    }
+
+    /** 从 JSON 值递归生成参数（数组元素对象 / 对象字段）。 */
+    function paramFromJson(name, value, location) {
+      if (Array.isArray(value)) {
+        const elem = value.length > 0 ? value[0] : null;
+        const children = (elem !== null && typeof elem === "object" && !Array.isArray(elem))
+          ? Object.entries(elem).map(([n, v]) => paramFromJson(n, v, location))
+          : [];
+        return { name, location, type: "array", source: "agent", required: true, description: "请补充中文说明", value: "", children };
+      }
+      if (value !== null && typeof value === "object") {
+        const children = Object.entries(value).map(([n, v]) => paramFromJson(n, v, location));
+        return { name, location, type: "object", source: "agent", required: true, description: "请补充中文说明", value: "", children };
+      }
+      return { name, location, type: value === null ? "string" : typeof value, source: "agent", required: true, description: "请补充中文说明", value: "", children: [] };
     }
 
     /** 从 cURL 命令解析 method / url / auth / body 参数。 */
@@ -623,15 +740,7 @@ window.__ModuleLoader__.load({
       if (dataMatch) {
         try {
           const body = JSON.parse(dataMatch[2]);
-          parsed.params = Object.entries(body).map(([name, value]) => ({
-            name,
-            location: "body",
-            type: Array.isArray(value) ? "array" : value === null ? "string" : typeof value,
-            source: "agent",
-            required: true,
-            description: "请补充中文说明",
-            value: ""
-          }));
+          parsed.params = Object.entries(body).map(([name, value]) => paramFromJson(name, value, "body"));
         } catch {
           parsed.bodyJsonWarning = true;
         }
@@ -680,6 +789,18 @@ window.__ModuleLoader__.load({
         setMessage({ kind: "ok", text: enable ? "已保存并启用给 Agent" : "草稿已保存" });
       }, []);
 
+      const handleDelete = useCallback(async (tool) => {
+        if (!globalThis.confirm(`确定删除「${tool.name}」吗？删除后不可恢复。`)) return;
+        try {
+          const data = await api("/delete", { id: tool.id });
+          setTools(data.tools ?? []);
+          setView("list");
+          setMessage({ kind: "ok", text: `已删除「${tool.name}」` });
+        } catch (e) {
+          setMessage({ kind: "error", text: e && e.message ? e.message : String(e) });
+        }
+      }, []);
+
       return h("div", { style: styles.root }, [
         h("div", { style: styles.spacer }, [
           h("div", null, [
@@ -694,13 +815,14 @@ window.__ModuleLoader__.load({
           ? h("div", { style: { ...styles.msg, ...(message.kind === "ok" ? styles.ok : styles.error) } }, message.text)
           : null,
         view === "list"
-          ? h(ListView, { tools, onOpen: openEditor, onNew: () => openEditor("") })
+          ? h(ListView, { tools, onOpen: openEditor, onNew: () => openEditor(""), onDelete: handleDelete })
           : h(EditorView, {
               draft,
               isNew: editingId === "",
               onDraftChange: setDraft,
               onBack: handleBack,
-              onSaved: handleSaved
+              onSaved: handleSaved,
+              onDelete: handleDelete
             })
       ]);
     }

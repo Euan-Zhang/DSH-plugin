@@ -48,7 +48,9 @@ const ParamSchema = z.object({
   required: z.boolean(),
   description: z.string(),
   // 非 agent 来源时使用：fixed=固定值；credential=凭据引用名；default=默认值。
-  value: z.string()
+  value: z.string(),
+  // 子参数：array 的元素对象字段 / object 的字段，递归。
+  children: z.array(z.lazy(() => ParamSchema)).default([])
 });
 
 /** 单条 API 工具定义。 */
@@ -82,6 +84,7 @@ function readParam(input) {
   const location = PARAM_LOCATIONS.includes(record["location"]) ? record["location"] : "query";
   const type = PARAM_TYPES.includes(record["type"]) ? record["type"] : "string";
   const source = PARAM_SOURCES.includes(record["source"]) ? record["source"] : "agent";
+  const children = Array.isArray(record["children"]) ? record["children"].map(readParam) : [];
   return {
     name: typeof record["name"] === "string" ? record["name"].trim() : "",
     location,
@@ -89,7 +92,8 @@ function readParam(input) {
     source,
     required: record["required"] === true,
     description: typeof record["description"] === "string" ? record["description"] : "",
-    value: typeof record["value"] === "string" ? record["value"] : ""
+    value: typeof record["value"] === "string" ? record["value"] : "",
+    children: children.filter((c) => c.name.length > 0)
   };
 }
 
@@ -145,7 +149,23 @@ function assertToolId(toolId) {
   if (toolId === "run_code") throw new ApiError(400, "run_code 是保留工具名，请更换");
 }
 
-/** 把配置里的参数类型映射为 defineTool 的参数 schema 节点。 */
+/** 把一组子参数编译成 object 的 properties map。 */
+function toPropertiesMap(children) {
+  const props = {};
+  for (const c of children ?? []) {
+    if (!c.name) continue;
+    props[c.name] = toParamSchema(c);
+  }
+  return props;
+}
+
+/** 把数组参数的元素编译成 items schema（元素为对象时返回对象 schema）。 */
+function toArrayItems(children) {
+  if (!children || children.length === 0) return undefined;
+  return { type: "object", properties: toPropertiesMap(children), additionalProperties: true };
+}
+
+/** 把配置里的参数类型映射为 defineTool 的参数 schema 节点（递归，支持子参数）。 */
 function toParamSchema(p) {
   const base = { description: p.description || p.name };
   const required = p.required ? { required: true } : {};
@@ -155,12 +175,23 @@ function toParamSchema(p) {
     case "boolean":
       return { ...base, type: "boolean", ...required };
     case "object":
-      return { ...base, type: "object", additionalProperties: true, ...required };
-    case "array":
-      return { ...base, type: "array", ...required };
+      return { ...base, type: "object", properties: toPropertiesMap(p.children), additionalProperties: true, ...required };
+    case "array": {
+      const items = toArrayItems(p.children);
+      return { ...base, type: "array", ...(items ? { items } : {}), ...required };
+    }
     default:
       return { ...base, type: "string", ...required };
   }
+}
+
+/** 递归描述一条参数（含子字段提示）。 */
+function describeParam(p, indent) {
+  const agentChildren = (p.children ?? []).filter((c) => c.source === "agent");
+  const childHint = agentChildren.length > 0 ? `，子字段 ${agentChildren.map((c) => c.name).join("、")}` : "";
+  const lines = [`${indent}${p.name}（${p.description || p.type}${childHint}）`];
+  for (const c of agentChildren) lines.push(...describeParam(c, `${indent}  `));
+  return lines;
 }
 
 /** 组装工具的模型可见描述。 */
@@ -169,7 +200,8 @@ function buildDescription(api) {
   lines.push(`接口：${api.method} ${api.url}`);
   const agentParams = api.params.filter((p) => p.source === "agent");
   if (agentParams.length > 0) {
-    lines.push(`参数：${agentParams.map((p) => `${p.name}（${p.description || p.type}）`).join("、")}`);
+    lines.push("参数：");
+    for (const p of agentParams) lines.push(...describeParam(p, "  - "));
   }
   if (api.auth !== "none" && api.credential) {
     lines.push(`认证：${api.auth}（凭据引用 ${api.credential}）`);
@@ -202,6 +234,15 @@ function coerceValue(raw, type) {
   }
 }
 
+/** 校验并品牌化凭据引用名；格式错误抛友好 ApiError。 */
+function assertCredentialRef(name) {
+  try {
+    return credentialRef(name);
+  } catch {
+    throw new ApiError(400, `凭据引用「${name}」格式不正确：须为环境变量名样式（字母/数字/下划线，且以字母或下划线开头），例如 CMS_API_TOKEN。请勿把密钥值直接填进「凭据引用」，密钥请填在「密钥值」框或同名环境变量中。`);
+  }
+}
+
 /** 解析某参数在当前调用中的值（含凭据解析）。 */
 async function resolveParamValue(p, args, sctx) {
   switch (p.source) {
@@ -211,7 +252,7 @@ async function resolveParamValue(p, args, sctx) {
       return coerceValue(p.value, p.type);
     case "credential": {
       if (!p.value) return undefined;
-      const resolved = await sctx.credentials.resolve(credentialRef(p.value));
+      const resolved = await sctx.credentials.resolve(assertCredentialRef(p.value));
       return resolved === undefined ? undefined : coerceValue(resolved.value, p.type);
     }
     case "default":
@@ -225,9 +266,9 @@ async function resolveParamValue(p, args, sctx) {
 async function applyAuth(api, headers, sctx) {
   if (api.auth === "none") return;
   if (!api.credential) throw new ApiError(400, `认证方式为 ${api.auth}，但未填写凭据引用`);
-  const resolved = await sctx.credentials.resolve(credentialRef(api.credential));
+  const resolved = await sctx.credentials.resolve(assertCredentialRef(api.credential));
   if (resolved === undefined) {
-    throw new ApiError(400, `凭据 ${api.credential} 未配置（请设置环境变量或通过凭据存储写入）`);
+    throw new ApiError(400, `凭据 ${api.credential} 未配置（请在「密钥值」框填写，或设置同名环境变量）`);
   }
   switch (api.auth) {
     case "bearer":
@@ -479,16 +520,28 @@ async function dispatch(scope, sctx, req, res) {
   if (method === "POST" && sub === "credential") {
     const name = body["name"];
     if (typeof name !== "string" || name.length === 0) throw new ApiError(400, "缺少凭据引用名");
-    let configured = false;
-    let source;
+    let resolved;
     try {
-      const resolved = await sctx.credentials.resolve(credentialRef(name));
-      configured = resolved !== undefined;
-      source = resolved === undefined ? undefined : resolved.source;
+      resolved = await sctx.credentials.resolve(assertCredentialRef(name));
     } catch {
-      configured = false;
+      resolved = undefined;
     }
-    sendJson(res, 200, { ok: true, name, configured, source });
+    sendJson(res, 200, { ok: true, name, configured: resolved !== undefined, source: resolved === undefined ? undefined : resolved.source });
+    return;
+  }
+
+  if (method === "POST" && sub === "credential/set") {
+    const name = body["name"];
+    const value = body["value"];
+    if (typeof name !== "string" || name.length === 0) throw new ApiError(400, "缺少凭据引用名");
+    if (typeof value !== "string" || value.length === 0) throw new ApiError(400, "密钥值不能为空");
+    try {
+      await sctx.credentials.set(assertCredentialRef(name), value);
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(400, error instanceof Error ? error.message : String(error));
+    }
+    sendJson(res, 200, { ok: true, name });
     return;
   }
 

@@ -10,6 +10,7 @@ HTTP API 配置成 **Agent 可调用的工具**——Agent 在合适的时候按
 - 两种接入方式：手动配置，或「粘贴 cURL」一键解析方法 / 地址 / Bearer 认证 / Body 参数；
 - 支持 GET / POST / PUT / PATCH / DELETE，路径变量 `{name}`、Query / Header / Body 参数；
 - 参数定义：位置、类型、值来源（Agent 输入 / 固定值 / 凭据引用 / 默认值）、必填、中文说明；
+- 数组（元素为对象）/ 对象参数支持递归子字段，手动配置与 cURL 导入均能表达嵌套结构；
 - 认证：无需认证 / API Key / Bearer Token / Basic Auth；
 - 密钥只保存 **引用**（环境变量名样式），实际值经 DSH `credentials` 服务按次解析，
   不进普通配置、Agent 上下文或调用轨迹；
