@@ -25,7 +25,8 @@ import { credentialRef } from "@deepseek-ai/dsh-credentials";
 
 const NAMESPACE = settingsNamespace("api-tools");
 const API_PREFIX = "/api/api-tools";
-const MAX_RESPONSE_BYTES = 256 * 1024; // 256 KB
+const DEFAULT_MAX_RESPONSE_BYTES = 10 * 1024 * 1024; // 默认 10 MB
+const MAX_RESPONSE_BYTES_LIMIT = 50 * 1024 * 1024; // 上限 50 MB
 const DEFAULT_TIMEOUT_MS = 60e3; // 60 秒
 
 /** 参数位置白名单。 */
@@ -64,6 +65,7 @@ const ApiToolSchema = z.object({
   auth: z.union(AUTH_TYPES.map((v) => z.const(v))),
   credential: z.string(),
   enabled: z.boolean(),
+  maxResponseBytes: z.number().default(DEFAULT_MAX_RESPONSE_BYTES),
   params: z.array(ParamSchema)
 });
 
@@ -95,6 +97,12 @@ function readParam(input) {
     defaultValue: typeof record["defaultValue"] === "string" ? record["defaultValue"] : "",
     children: children.filter((c) => c.name.length > 0)
   };
+}
+
+/** 规范化响应上限（字节），越界取默认值或上限。 */
+function clampMaxResponse(value) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return DEFAULT_MAX_RESPONSE_BYTES;
+  return Math.min(value, MAX_RESPONSE_BYTES_LIMIT);
 }
 
 /** 规范化请求体中的一条 API 工具定义。 */
@@ -131,6 +139,7 @@ function readTool(input) {
     auth,
     credential: typeof record["credential"] === "string" ? record["credential"].trim() : "",
     enabled: record["enabled"] === true,
+    maxResponseBytes: clampMaxResponse(record["maxResponseBytes"]),
     params: rawParams
   };
 }
@@ -361,7 +370,8 @@ async function callApi(api, args, sctx, signal, timeoutMs = DEFAULT_TIMEOUT_MS) 
     timeoutMs
   );
 
-  const text = await readBounded(response);
+  const maxBytes = clampMaxResponse(api.maxResponseBytes);
+  const text = await readBounded(response, maxBytes);
   let data;
   try {
     data = JSON.parse(text);
@@ -379,14 +389,14 @@ async function callApi(api, args, sctx, signal, timeoutMs = DEFAULT_TIMEOUT_MS) 
 }
 
 /** 读取响应体并限制大小。 */
-async function readBounded(response) {
+async function readBounded(response, maxBytes = DEFAULT_MAX_RESPONSE_BYTES) {
   const contentLength = Number(response.headers.get("content-length") ?? "0");
-  if (contentLength > MAX_RESPONSE_BYTES) {
-    throw new ApiError(502, `响应过大（${contentLength} 字节），超过 ${MAX_RESPONSE_BYTES} 字节上限`);
+  if (contentLength > maxBytes) {
+    throw new ApiError(502, `响应过大（${contentLength} 字节），超过 ${maxBytes} 字节上限`);
   }
   const buf = await response.arrayBuffer();
-  if (buf.byteLength > MAX_RESPONSE_BYTES) {
-    throw new ApiError(502, `响应过大（${buf.byteLength} 字节），超过 ${MAX_RESPONSE_BYTES} 字节上限`);
+  if (buf.byteLength > maxBytes) {
+    throw new ApiError(502, `响应过大（${buf.byteLength} 字节），超过 ${maxBytes} 字节上限`);
   }
   return Buffer.from(buf).toString("utf8");
 }

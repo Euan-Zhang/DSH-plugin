@@ -54,6 +54,7 @@ window.__ModuleLoader__.load({
         auth: "none",
         credential: "",
         enabled: false,
+        maxResponseBytes: 10485760,
         params: []
       };
     }
@@ -613,6 +614,17 @@ window.__ModuleLoader__.load({
               placeholder: "例如：1a4f4d8a-495b-4265-b080-509f70a5a27e",
               autoComplete: "off",
               onChange: (e) => setCredentialValue(e.target.value)
+            })
+          ]),
+          h("div", { style: { ...styles.field, marginTop: 8 } }, [
+            h("label", { style: styles.label }, "最大响应（MB，1~50，默认 10；大数据量接口可调大）"),
+            h("input", {
+              style: styles.input,
+              type: "number",
+              min: 1,
+              max: 50,
+              value: Math.round((draft.maxResponseBytes ?? 10485760) / 1048576),
+              onChange: (e) => setField({ maxResponseBytes: (Number(e.target.value) || 1) * 1048576 })
             })
           ]),
           h("div", { style: styles.muted },
