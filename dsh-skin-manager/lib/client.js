@@ -349,11 +349,35 @@ window.__ModuleLoader__.load({
         () => React.createElement(SkinBackground, { manager }),
       ));
 
-      // 设置页「皮肤」分区。
-      ctx.slots.inject("settings.section", () => ctx.slots.register(
-        { name: "settings.section", id: "dsh-skins", order: 30, label: "皮肤" },
-        () => React.createElement(SkinSection, { manager }),
-      ));
+      // 「皮肤」分区：安装了「我的插件」基础插件（声明 my-plugins.section）就
+      // 注册到大面板里，否则回退到设置页（settings.section）。动态迁移，顺序无关。
+      const MP = "my-plugins.section";
+      const SETTINGS = "settings.section";
+      let active = null;
+      let activeTarget = null;
+
+      const mount = () => {
+        const target = ctx.slots.spec(MP) ? MP : SETTINGS;
+        if (target === activeTarget && active !== null) return;
+        if (active) { try { active(); } catch (e) {} active = null; }
+        activeTarget = target;
+        if (!ctx.slots.spec(target)) return;
+        active = ctx.slots.register(
+          { name: target, id: "dsh-skins", order: 30, label: "皮肤" },
+          () => React.createElement(SkinSection, { manager }),
+        );
+      };
+
+      ctx.effect(() => {
+        const offMp = ctx.slots.subscribe(MP, mount);
+        const offSettings = ctx.slots.subscribe(SETTINGS, mount);
+        mount();
+        return () => {
+          offMp();
+          offSettings();
+          if (active) { try { active(); } catch (e) {} active = null; }
+        };
+      }, "dsh-skin-manager: section target");
     }
 
     exports.apply = apply;

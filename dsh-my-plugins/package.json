@@ -1,0 +1,28 @@
+{
+  "name": "dsh-my-plugins",
+  "version": "1.0.0",
+  "description": "DSH 基础插件「我的插件」：在侧栏底部设置上方提供一个大号可调节面板，把技能 / 皮肤 / 数据库连接 / API 调用等插件的设置页聚合到 my-plugins.section 中",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "immediately": true
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

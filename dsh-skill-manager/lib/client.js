@@ -40,40 +40,40 @@ window.__ModuleLoader__.load({
     // ---------- 样式 ----------
 
     const styles = {
-      root: { display: "flex", flexDirection: "column", gap: 14, padding: "16px 20px", maxWidth: 1080, fontFamily: "inherit", color: "var(--color-text, #1f2328)" },
+      root: { display: "flex", flexDirection: "column", gap: 14, padding: "16px 20px", maxWidth: 1080, fontFamily: "inherit", color: "var(--dsw-alias-label-primary)" },
       head: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 },
       title: { fontSize: 16, fontWeight: 600, margin: 0 },
-      muted: { color: "var(--color-text-muted, #57606a)", fontSize: 12, lineHeight: 1.6 },
+      muted: { color: "var(--dsw-alias-label-secondary)", fontSize: 12, lineHeight: 1.6 },
       list: { display: "flex", flexDirection: "column", gap: 8 },
-      row: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid var(--color-border, #d0d7de)", borderRadius: 8 },
+      row: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 8 },
       rowMain: { flex: 1, minWidth: 0 },
       skillName: { fontWeight: 600 },
       skillNameOff: { fontWeight: 600, textDecoration: "line-through", opacity: 0.55 },
-      desc: { color: "var(--color-text-muted, #57606a)", fontSize: 12, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-      btn: { border: "1px solid var(--color-border, #d0d7de)", background: "var(--color-bg-raised, #ffffff)", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12, color: "inherit" },
-      btnDanger: { border: "1px solid var(--color-danger, #d1242f)", color: "var(--color-danger, #d1242f)", background: "transparent", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12 },
-      btnPrimary: { color: "#ffffff", background: "var(--color-accent, #0969da)", border: "1px solid var(--color-accent, #0969da)", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12 },
-      switch: { position: "relative", width: 36, height: 20, borderRadius: 999, border: "none", cursor: "pointer", background: "var(--color-bg-muted, #eaeef2)", padding: 0, flexShrink: 0 },
-      switchOn: { background: "var(--color-accent, #0969da)" },
+      desc: { color: "var(--dsw-alias-label-secondary)", fontSize: 12, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+      btn: { border: "1px solid var(--dsw-alias-border-l2)", background: "var(--dsw-alias-bg-layer-2)", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12, color: "inherit" },
+      btnDanger: { border: "1px solid var(--dsw-alias-state-error-primary)", color: "var(--dsw-alias-state-error-primary)", background: "transparent", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12 },
+      btnPrimary: { color: "var(--dsw-alias-button-primary-invert)", background: "var(--dsw-alias-button-primary-fill)", border: "1px solid var(--dsw-alias-button-primary-fill)", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12 },
+      switch: { position: "relative", width: 36, height: 20, borderRadius: 999, border: "none", cursor: "pointer", background: "var(--dsw-alias-bg-layer-1)", padding: 0, flexShrink: 0 },
+      switchOn: { background: "var(--dsw-alias-button-primary-fill)" },
       switchKnob: { position: "absolute", top: 2, left: 2, width: 16, height: 16, borderRadius: "50%", background: "#ffffff", transition: "left 0.15s" },
       switchKnobOn: { position: "absolute", top: 2, left: 18, width: 16, height: 16, borderRadius: "50%", background: "#ffffff", transition: "left 0.15s" },
-      form: { display: "flex", flexDirection: "column", gap: 10, padding: 14, border: "1px solid var(--color-border, #d0d7de)", borderRadius: 8 },
+      form: { display: "flex", flexDirection: "column", gap: 10, padding: 14, border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 8 },
       field: { display: "flex", flexDirection: "column", gap: 4 },
-      label: { fontSize: 12, color: "var(--color-text-muted, #57606a)" },
-      input: { background: "var(--color-bg, #ffffff)", border: "1px solid var(--color-border, #d0d7de)", borderRadius: 6, padding: "7px 9px", fontSize: 13, color: "inherit", width: "100%", boxSizing: "border-box" },
-      textarea: { background: "var(--color-bg, #ffffff)", border: "1px solid var(--color-border, #d0d7de)", borderRadius: 6, padding: "7px 9px", fontSize: 13, color: "inherit", width: "100%", boxSizing: "border-box", resize: "vertical" },
-      textareaSm: { background: "var(--color-bg, #ffffff)", border: "1px solid var(--color-border, #d0d7de)", borderRadius: 6, padding: "7px 9px", fontSize: 12, color: "inherit", width: "100%", boxSizing: "border-box", resize: "vertical", fontFamily: "ui-monospace, monospace" },
-      hint: { fontSize: 11, color: "var(--color-text-muted, #57606a)" },
+      label: { fontSize: 12, color: "var(--dsw-alias-label-secondary)" },
+      input: { background: "var(--dsw-alias-bg-layer-1)", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 6, padding: "7px 9px", fontSize: 13, color: "inherit", width: "100%", boxSizing: "border-box" },
+      textarea: { background: "var(--dsw-alias-bg-layer-1)", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 6, padding: "7px 9px", fontSize: 13, color: "inherit", width: "100%", boxSizing: "border-box", resize: "vertical" },
+      textareaSm: { background: "var(--dsw-alias-bg-layer-1)", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 6, padding: "7px 9px", fontSize: 12, color: "inherit", width: "100%", boxSizing: "border-box", resize: "vertical", fontFamily: "ui-monospace, monospace" },
+      hint: { fontSize: 11, color: "var(--dsw-alias-label-secondary)" },
       checks: { display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" },
       check: { display: "flex", alignItems: "center", gap: 6, fontSize: 13 },
       actions: { display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" },
-      error: { color: "var(--color-danger, #d1242f)", fontSize: 12 },
-      note: { color: "var(--color-text-muted, #57606a)", fontSize: 12 },
-      empty: { border: "1px dashed var(--color-border, #d0d7de)", borderRadius: 8, padding: "36px 16px", textAlign: "center", color: "var(--color-text-muted, #57606a)" },
-      box: { display: "flex", flexDirection: "column", gap: 6, padding: 8, border: "1px dashed var(--color-border, #d0d7de)", borderRadius: 6 },
+      error: { color: "var(--dsw-alias-state-error-primary)", fontSize: 12 },
+      note: { color: "var(--dsw-alias-label-secondary)", fontSize: 12 },
+      empty: { border: "1px dashed var(--dsw-alias-border-l2)", borderRadius: 8, padding: "36px 16px", textAlign: "center", color: "var(--dsw-alias-label-secondary)" },
+      box: { display: "flex", flexDirection: "column", gap: 6, padding: 8, border: "1px dashed var(--dsw-alias-border-l2)", borderRadius: 6 },
       boxHead: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 },
       refRow: { display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" },
-      refTag: { fontSize: 11, color: "var(--color-text-muted, #57606a)" },
+      refTag: { fontSize: 11, color: "var(--dsw-alias-label-secondary)" },
     };
 
     function Toggle({ on, onToggle, title }) {
@@ -348,12 +348,35 @@ window.__ModuleLoader__.load({
     // ---------- 注册 ----------
 
     function apply(ctx) {
-      ctx.slots.inject("settings.section", () => ctx.slots.register({
-        name: "settings.section",
-        id: "dsh-skill-manager",
-        order: 25,
-        label: "技能"
-      }, SkillManagerSection));
+      const MP = "my-plugins.section";
+      const SETTINGS = "settings.section";
+      let active = null;
+      let activeTarget = null;
+
+      const mount = () => {
+        const target = ctx.slots.spec(MP) ? MP : SETTINGS;
+        if (target === activeTarget && active !== null) return;
+        if (active) { try { active(); } catch (e) {} active = null; }
+        activeTarget = target;
+        if (!ctx.slots.spec(target)) return;
+        active = ctx.slots.register({
+          name: target,
+          id: "dsh-skill-manager",
+          order: 25,
+          label: "技能"
+        }, SkillManagerSection);
+      };
+
+      ctx.effect(() => {
+        const offMp = ctx.slots.subscribe(MP, mount);
+        const offSettings = ctx.slots.subscribe(SETTINGS, mount);
+        mount();
+        return () => {
+          offMp();
+          offSettings();
+          if (active) { try { active(); } catch (e) {} active = null; }
+        };
+      }, "dsh-skill-manager: section target");
     }
 
     exports.apply = apply;

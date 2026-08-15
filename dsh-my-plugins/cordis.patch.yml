@@ -1,0 +1,13 @@
+# 「我的插件」基础插件（纯 client 包）。
+#
+# 这一行让 Loader 加载包的 lib/index.js（host 半部为空，见该文件注释），
+# 同时 dsh.client 声明（package.json 的 dsh.client）把 lib/client.js 加入浏览器
+# roster：在侧栏底部「设置」上方渲染「我的插件」按钮，并声明 my-plugins.section。
+#
+# 无 inject：host 半部不依赖任何服务。其余插件（技能 / 皮肤 / 数据库连接 / API 调用）
+# 会检测 my-plugins.section 是否已声明来决定注册位置——安装了本插件就聚合到
+# 「我的插件」面板，未安装则回退到设置页（settings.section）。
+
+- insert:
+    - id: dsh-my-plugins
+      name: dsh-my-plugins

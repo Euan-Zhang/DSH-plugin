@@ -1,0 +1,350 @@
+import { randomUUID } from "node:crypto";
+import z from "@deepseek-ai/schemastery";
+import { settingsNamespace } from "@deepseek-ai/dsh-settings";
+import * as mysql from "mysql2/promise";
+import { createClient } from "@clickhouse/client";
+//#region lib/types/index.js
+/**
+* 数据库连接插件 —— host 半部。
+*
+* 提供：
+* 1. 连接列表的持久化（settings namespace `database-connections`，密码走
+*    role('secret')，不会被 wire 层的 describe 泄露）。
+* 2. /api/database-connections 前缀 HTTP API，供 client 端设置页调用：
+*    list / save / delete / test / databases / tables / query。
+* 3. 真实的 MySQL（mysql2）与 ClickHouse（@clickhouse/client）连接、探活与
+*    只读查询。
+*
+* 只读约束：query 仅放行 SELECT / SHOW / DESCRIBE / EXPLAIN / WITH 开头的语句，
+* 结果截断到 200 行，避免误执行写操作或拉取巨量数据。
+* @module @deepseek-ai/dsh-database-connections
+*/
+/** 单条连接的 schema（密码标记为 secret，wire 层自动脱敏）。 */
+const ConnectionSchema = z.object({
+	id: z.string(),
+	name: z.string().min(1),
+	type: z.union([z.const("mysql"), z.const("clickhouse")]),
+	host: z.string().min(1),
+	port: z.number().min(1).max(65535),
+	username: z.string(),
+	password: z.string().role("secret"),
+	database: z.string()
+});
+/** 配置节 schema。 */
+const ConfigSchema = z.object({ connections: z.array(ConnectionSchema) });
+const NAMESPACE = settingsNamespace("database-connections");
+const API_PREFIX = "/api/database-connections";
+const MAX_ROWS = 200;
+const TIMEOUT_MS = 15e3;
+/** 只读 SQL 白名单前缀。 */
+const READ_ONLY_PREFIX = /^\s*(select|show|describe|desc|explain|with)\b/i;
+/** 判断一个数据库类型是否为已知类型。 */
+function isDatabaseKind(value) {
+	return value === "mysql" || value === "clickhouse";
+}
+/** 是否为只读 SQL。 */
+function isReadOnly(sql) {
+	return READ_ONLY_PREFIX.test(sql);
+}
+/** 规范化端口：未提供时按类型给默认值。 */
+function resolvePort(type, port) {
+	if (typeof port === "number" && Number.isInteger(port) && port > 0) return port;
+	return type === "mysql" ? 3306 : 8123;
+}
+/** 把持久化连接转成给 client 的视图（脱敏）。 */
+function toView(connection) {
+	return {
+		id: connection.id,
+		name: connection.name,
+		type: connection.type,
+		host: connection.host,
+		port: connection.port,
+		username: connection.username,
+		database: connection.database,
+		hasPassword: connection.password.length > 0
+	};
+}
+/** 统一错误结构。 */
+var ApiError = class extends Error {
+	status;
+	constructor(status, message) {
+		super(message);
+		this.status = status;
+	}
+};
+/** 读取请求体并解析为 JSON（空 body 视为 {}）。 */
+function readJsonBody(req) {
+	return new Promise((resolve, reject) => {
+		let data = "";
+		req.on("data", (chunk) => {
+			data += chunk;
+			if (data.length > 1e6) {
+				reject(new ApiError(413, "请求体过大"));
+				req.destroy();
+			}
+		});
+		req.on("end", () => {
+			if (data.trim().length === 0) {
+				resolve({});
+				return;
+			}
+			try {
+				resolve(JSON.parse(data));
+			} catch {
+				reject(new ApiError(400, "请求体不是合法 JSON"));
+			}
+		});
+		req.on("error", reject);
+	});
+}
+/** 从请求体读取一条连接信息（client 提交形态，密码可省略）。 */
+function readConnection(input) {
+	if (typeof input !== "object" || input === null) throw new ApiError(400, "缺少连接信息");
+	const record = input;
+	const type = record["type"];
+	if (!isDatabaseKind(type)) throw new ApiError(400, "type 必须是 mysql 或 clickhouse");
+	const name = typeof record["name"] === "string" ? record["name"].trim() : "";
+	if (name.length === 0) throw new ApiError(400, "连接名称不能为空");
+	const host = typeof record["host"] === "string" ? record["host"].trim() : "";
+	if (host.length === 0) throw new ApiError(400, "主机地址不能为空");
+	return {
+		id: typeof record["id"] === "string" ? record["id"] : "",
+		name,
+		type,
+		host,
+		port: resolvePort(type, record["port"]),
+		username: typeof record["username"] === "string" ? record["username"] : "",
+		password: typeof record["password"] === "string" ? record["password"] : "",
+		database: typeof record["database"] === "string" ? record["database"] : ""
+	};
+}
+/** MySQL 连接工厂。 */
+async function withMySql(connection, run) {
+	const client = await mysql.createConnection({
+		host: connection.host,
+		port: connection.port,
+		user: connection.username,
+		password: connection.password,
+		...connection.database.length > 0 ? { database: connection.database } : {},
+		connectTimeout: TIMEOUT_MS
+	});
+	try {
+		return await run(client);
+	} finally {
+		await client.end();
+	}
+}
+/** ClickHouse 连接工厂。 */
+async function withClickHouse(connection, run) {
+	const client = createClient({
+		url: /^https?:\/\//.test(connection.host) ? connection.host : `http://${connection.host}:${connection.port}`,
+		username: connection.username,
+		password: connection.password,
+		database: connection.database || "default",
+		request_timeout: TIMEOUT_MS
+	});
+	try {
+		return await run(client);
+	} finally {
+		await client.close();
+	}
+}
+/** 测试一条连接。 */
+async function testConnection(connection) {
+	if (connection.type === "mysql") {
+		await withMySql(connection, async (client) => {
+			await client.ping();
+		});
+		return { message: "MySQL 连接成功" };
+	}
+	const pingResult = await withClickHouse(connection, async (client) => {
+		return await client.ping({ select: true });
+	});
+	if (!pingResult.success) throw new Error(pingResult.error.message);
+	return { message: "ClickHouse 连接成功" };
+}
+/** 列出数据库。 */
+async function listDatabases(connection) {
+	if (connection.type === "mysql") return { rows: (await withMySql(connection, async (client) => {
+		const [result] = await client.query("SHOW DATABASES");
+		return result;
+	})).map((row) => String(Object.values(row)[0] ?? "")) };
+	return { rows: (await withClickHouse(connection, async (client) => {
+		return await (await client.query({
+			query: "SELECT name FROM system.databases ORDER BY name",
+			format: "JSONEachRow"
+		})).json();
+	})).map((row) => row.name) };
+}
+/** 列出某数据库的表。 */
+async function listTables(connection, database) {
+	if (connection.type === "mysql") {
+		const db = database || connection.database;
+		if (db.length === 0) throw new ApiError(400, "请先选择数据库");
+		return { rows: (await withMySql(connection, async (client) => {
+			const [result] = await client.query(`SHOW TABLES FROM \`${db.replace(/`/g, "``")}\``);
+			return result;
+		})).map((row) => String(Object.values(row)[0] ?? "")) };
+	}
+	const db = database || connection.database || "default";
+	return { rows: (await withClickHouse(connection, async (client) => {
+		return await (await client.query({
+			query: "SELECT name FROM system.tables WHERE database = {db:String} ORDER BY name",
+			query_params: { db },
+			format: "JSONEachRow"
+		})).json();
+	})).map((row) => row.name) };
+}
+/** 执行只读查询。 */
+async function runQuery(connection, sql) {
+	if (typeof sql !== "string" || sql.trim().length === 0) throw new ApiError(400, "SQL 不能为空");
+	if (!isReadOnly(sql)) throw new ApiError(400, "仅允许 SELECT / SHOW / DESCRIBE / EXPLAIN / WITH 只读查询");
+	if (connection.type === "mysql") {
+		const rows = await withMySql(connection, async (client) => {
+			const [result] = await client.query({
+				sql,
+				timeout: TIMEOUT_MS
+			});
+			return result;
+		});
+		return {
+			columns: rows.length > 0 ? Object.keys(rows[0]) : [],
+			rows: rows.slice(0, MAX_ROWS)
+		};
+	}
+	const rows = await withClickHouse(connection, async (client) => {
+		return await (await client.query({
+			query: sql,
+			format: "JSONEachRow"
+		})).json();
+	});
+	return {
+		columns: rows.length > 0 ? Object.keys(rows[0]) : [],
+		rows: rows.slice(0, MAX_ROWS)
+	};
+}
+/** 写入 JSON 响应。 */
+function sendJson(res, status, payload) {
+	const body = JSON.stringify(payload);
+	res.writeHead(status, {
+		"Content-Type": "application/json; charset=utf-8",
+		"Content-Length": Buffer.byteLength(body)
+	});
+	res.end(body);
+}
+/**
+* 注册 host 半部：settings 持久化 + HTTP API。依赖 settings 与 webServer，
+* 两者都由 web profile 提供。
+*/
+function apply(ctx) {
+	ctx.inject(["settings", "webServer"], (sctx) => {
+		const scope = sctx.settings.register(NAMESPACE, ConfigSchema);
+		const route = {
+			kind: "prefix",
+			path: API_PREFIX,
+			handler: async (req, res) => {
+				try {
+					await dispatch(scope, req, res);
+				} catch (error) {
+					if (error instanceof ApiError) {
+						sendJson(res, error.status, {
+							ok: false,
+							error: error.message
+						});
+						return;
+					}
+					const message = error instanceof Error ? error.message : String(error);
+					sctx.logger?.warn?.("database-connections: %s", message);
+					sendJson(res, 500, {
+						ok: false,
+						error: message
+					});
+				}
+			}
+		};
+		sctx.webServer.register(route);
+	});
+}
+/** 按 path + method 分发请求。 */
+async function dispatch(scope, req, res) {
+	const sub = new URL(req.url ?? "/", "http://x").pathname.slice(25).replace(/^\/+/, "");
+	const method = req.method ?? "GET";
+	if (method === "GET" && (sub === "" || sub === "list")) {
+		sendJson(res, 200, {
+			ok: true,
+			connections: scope.get().connections.map(toView)
+		});
+		return;
+	}
+	const body = await readJsonBody(req);
+	if (method === "POST" && sub === "save") {
+		const input = readConnection(body["connection"] ?? body);
+		const connections = [...scope.get().connections];
+		const existing = connections.find((c) => c.id === input.id && input.id !== "");
+		if (existing !== void 0) {
+			const next = {
+				...input,
+				id: existing.id,
+				password: input.password.length > 0 ? input.password : existing.password
+			};
+			connections[connections.indexOf(existing)] = next;
+		} else {
+			const next = {
+				...input,
+				id: randomUUID()
+			};
+			connections.push(next);
+		}
+		await scope.replace({ connections });
+		sendJson(res, 200, {
+			ok: true,
+			connections: connections.map(toView)
+		});
+		return;
+	}
+	if (method === "POST" && sub === "delete") {
+		const id = body["id"];
+		if (typeof id !== "string" || id.length === 0) throw new ApiError(400, "缺少连接 id");
+		const connections = scope.get().connections.filter((c) => c.id !== id);
+		await scope.replace({ connections });
+		sendJson(res, 200, {
+			ok: true,
+			connections: connections.map(toView)
+		});
+		return;
+	}
+	if (method === "POST" && sub === "test") {
+		sendJson(res, 200, {
+			ok: true,
+			...await testConnection(readConnection(body["connection"] ?? body))
+		});
+		return;
+	}
+	if (method === "POST" && sub === "databases") {
+		sendJson(res, 200, {
+			ok: true,
+			...await listDatabases(readConnection(body["connection"] ?? body))
+		});
+		return;
+	}
+	if (method === "POST" && sub === "tables") {
+		sendJson(res, 200, {
+			ok: true,
+			...await listTables(readConnection(body["connection"] ?? body), typeof body["database"] === "string" ? body["database"] : "")
+		});
+		return;
+	}
+	if (method === "POST" && sub === "query") {
+		const connection = readConnection(body["connection"] ?? body);
+		const sql = body["sql"];
+		if (typeof sql !== "string") throw new ApiError(400, "缺少 sql");
+		sendJson(res, 200, {
+			ok: true,
+			...await runQuery(connection, sql)
+		});
+		return;
+	}
+	throw new ApiError(404, `未知接口：${method} ${sub}`);
+}
+//#endregion
+export { apply };
