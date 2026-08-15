@@ -1,0 +1,28 @@
+{
+  "schema": "dsh-skin",
+  "schemaVersion": 1,
+  "id": "rosy-light",
+  "name": "玫瑰浅色",
+  "version": "1.0.0",
+  "author": "DSH 示例",
+  "description": "玫瑰浅色主题：暖白底 + 玫瑰红点缀，演示 light 皮肤。",
+  "colorScheme": "light",
+  "tokens": {
+    "--dsw-alias-bg-base": "#fdf6f6",
+    "--dsw-alias-bg-layer-1": "#faf0f0",
+    "--dsw-alias-bg-layer-2": "#f6e9e9",
+    "--dsw-alias-brand-primary": "#d86a8a",
+    "--dsw-alias-brand-text": "#c2537a",
+    "--dsw-alias-label-primary": "#5a3643",
+    "--dsw-alias-label-secondary": "#8a6470",
+    "--dsw-alias-button-primary-fill": "#d86a8a",
+    "--dsw-alias-button-primary-hover": "#e0809c",
+    "--dsw-alias-button-primary-invert": "#ffffff",
+    "--dsw-specific-sidebar-fill": "#f9efef"
+  },
+  "background": {
+    "type": "color",
+    "value": "#fdf6f6",
+    "opacity": 1
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "dsh-skin",
+  "schemaVersion": 1,
+  "id": "ocean-blue",
+  "name": "深海蓝",
+  "version": "1.0.0",
+  "author": "DSH 示例",
+  "description": "深海蓝主题：深蓝底 + 冷色点缀 + 蓝紫渐变背景。",
+  "colorScheme": "dark",
+  "tokens": {
+    "--dsw-alias-bg-base": "#0a0e1a",
+    "--dsw-alias-bg-layer-1": "#101629",
+    "--dsw-alias-bg-layer-2": "#16203a",
+    "--dsw-alias-bg-layer-3": "#1b2743",
+    "--dsw-alias-brand-primary": "#4a9fd8",
+    "--dsw-alias-brand-text": "#4a9fd8",
+    "--dsw-alias-label-primary": "#e3ecf7",
+    "--dsw-alias-label-secondary": "#9fb3d1",
+    "--dsw-alias-label-tertiary": "#6f82a5",
+    "--dsw-alias-button-primary-fill": "#4a9fd8",
+    "--dsw-alias-button-primary-hover": "#5fb0e6",
+    "--dsw-alias-button-primary-invert": "#081018",
+    "--dsw-specific-sidebar-fill": "#0a0e18",
+    "--dsw-alias-state-success-primary": "#4fc49a",
+    "--dsw-alias-state-warn-primary": "#e0b35a",
+    "--dsw-alias-state-error-primary": "#e06a6a"
+  },
+  "css": "::-webkit-scrollbar-thumb { background: rgba(74, 159, 216, 0.35); border-radius: 8px; }",
+  "background": {
+    "type": "gradient",
+    "value": "linear-gradient(160deg, #0a0e1a 0%, #12203f 55%, #0a0e1a 100%)",
+    "opacity": 1
+  }
+}
