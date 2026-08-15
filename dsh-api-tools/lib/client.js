@@ -655,21 +655,6 @@ window.__ModuleLoader__.load({
           message && h("div", { style: { ...styles.msg, ...(message.kind === "ok" ? styles.ok : styles.error), marginTop: 8 } }, message.text)
         ]),
 
-        // Agent 使用
-        h("div", { style: styles.card }, [
-          h("h3", { style: styles.sectionTitle }, "Agent 使用"),
-          h("div", { style: styles.muted }, "测试通过后可启用。启用后，该配置会注册成一个有明确参数的独立 Agent 工具。"),
-          h("div", { style: { ...styles.row, justifyContent: "space-between", marginTop: 8 } }, [
-            h("span", { style: { fontSize: 13, fontWeight: 600 } }, "启用给 Agent"),
-            h("input", {
-              type: "checkbox",
-              style: { ...styles.switch, ...(draft.enabled ? styles.switchOn : {}) },
-              checked: draft.enabled,
-              onChange: (e) => setField({ enabled: e.target.checked })
-            })
-          ])
-        ]),
-
         // 底部操作
         h("div", { style: { ...styles.row, justifyContent: "flex-end", marginTop: 4 } }, [
           h("button", { type: "button", style: styles.button, onClick: onBack }, "取消"),
