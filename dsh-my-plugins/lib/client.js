@@ -26,15 +26,15 @@ window.__ModuleLoader__.load({
 
     const S = {
       // 侧栏底部按钮：尽量对齐设置按钮的紧凑节奏（wide 34px 行 / rail 36px 圆）。
-      layer: { position: "relative", display: "flex", flexDirection: "column" },
+      layer: { position: "relative", display: "flex", flexDirection: "column", width: "100%" },
       trigger: {
         flex: "none",
         display: "flex",
         alignItems: "center",
         gap: 8,
-        width: "100%",
+        width: "calc(100% + 8px)",
         height: 34,
-        margin: "4px 0",
+        margin: "4px -4px",
         padding: "6px 2px 6px 10px",
         boxSizing: "border-box",
         border: "none",
@@ -265,7 +265,7 @@ window.__ModuleLoader__.load({
         if (!open) return;
         if (box.w === 0 || box.h === 0) {
           setBox({
-            w: Math.round(window.innerWidth * 0.8),
+            w: Math.round(window.innerWidth * 0.88),
             h: Math.round(window.innerHeight * 0.8),
           });
         }
@@ -296,7 +296,7 @@ window.__ModuleLoader__.load({
         dragRef.current = {
           x0: e.clientX,
           y0: e.clientY,
-          w0: box.w || Math.round(window.innerWidth * 0.8),
+          w0: box.w || Math.round(window.innerWidth * 0.88),
           h0: box.h || Math.round(window.innerHeight * 0.8),
         };
       };
@@ -314,7 +314,7 @@ window.__ModuleLoader__.load({
       // 选中的 section：activeId 失效时回退到第一个。
       const active = (sections.find((s) => s.id === activeId) || sections[0])?.id;
 
-      const w = box.w || Math.round(window.innerWidth * 0.8);
+      const w = box.w || Math.round(window.innerWidth * 0.88);
       const hgt = box.h || Math.round(window.innerHeight * 0.8);
 
       return h("div", { style: S.layer },

@@ -92,7 +92,7 @@ function apply(ctx) {
 | 输入框/卡片背景 | `--dsw-alias-bg-layer-1` / `-layer-2` | `--color-bg` / `--color-bg-raised` |
 | 边框 | `--dsw-alias-border-l1` / `-l2` | `--color-border` |
 | 主按钮填充 | `--dsw-alias-button-primary-fill` | `--color-accent` |
-| 主按钮文字 | `--dsw-alias-button-primary-invert` | `#ffffff` |
+| 主按钮文字 | `--dsw-alias-label-primary-inverted` | `#ffffff` |
 | 危险/成功 | `--dsw-alias-state-error-primary` / `-success-primary` | `--color-danger` / `--color-success` |
 
 完整 token 名可在运行中的 DSH 通过 `Theme.listTokens` 查询。

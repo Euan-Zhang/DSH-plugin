@@ -145,7 +145,7 @@ window.__ModuleLoader__.load({
 			primary: {
 				background: "var(--dsw-alias-button-primary-fill)",
 				borderColor: "var(--dsw-alias-button-primary-fill)",
-				color: "var(--dsw-alias-button-primary-invert)"
+				color: "var(--dsw-alias-label-primary-inverted)"
 			},
 			danger: {
 				background: "var(--dsw-alias-state-error-primary)",

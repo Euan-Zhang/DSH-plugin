@@ -217,7 +217,7 @@ window.__ModuleLoader__.load({
         padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer",
         border: "1px solid transparent",
         background: "var(--dsw-alias-button-primary-fill)",
-        color: "var(--dsw-alias-button-primary-invert)",
+        color: "var(--dsw-alias-label-primary-inverted)",
       },
       danger: {
         padding: "6px 12px", borderRadius: 8, fontSize: 13, cursor: "pointer",

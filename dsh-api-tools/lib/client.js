@@ -165,7 +165,7 @@ window.__ModuleLoader__.load({
         cursor: "pointer",
         fontSize: 13
       },
-      primary: { background: "var(--dsw-alias-button-primary-fill)", borderColor: "var(--dsw-alias-button-primary-fill)", color: "var(--dsw-alias-button-primary-invert)" },
+      primary: { background: "var(--dsw-alias-button-primary-fill)", borderColor: "var(--dsw-alias-button-primary-fill)", color: "var(--dsw-alias-label-primary-inverted)" },
       danger: { background: "var(--dsw-alias-state-error-primary)", borderColor: "var(--dsw-alias-state-error-primary)", color: "#ffffff" },
       subtle: { background: "transparent", color: "var(--dsw-alias-label-secondary)" },
       summary: { display: "flex", gap: 10, flexWrap: "wrap" },
@@ -352,27 +352,25 @@ window.__ModuleLoader__.load({
           ...(isNested ? { marginLeft: 22, background: "var(--dsw-alias-bg-layer-1)" } : {})
         }
       }, [
-        h("div", { style: { display: "grid", gridTemplateColumns: "1.5fr 1fr 0.9fr 1fr", gap: 8, alignItems: "end" } }, [
-          h(ParamField, { label: isNested ? "子字段名" : "参数名称" },
+        h("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" } }, [
+          h(ParamField, { label: isNested ? "子字段名" : "参数名称", style: { flex: "1 1 160px" } },
             h("input", { style: styles.tableInput, value: param.name, onChange: (e) => setField({ name: e.target.value }), placeholder: "字段名" })),
-          h(ParamField, { label: "位置" },
+          h(ParamField, { label: "位置", style: { flex: "0 1 95px" } },
             h("select", { style: styles.tableSelect, value: param.location, onChange: (e) => setField({ location: e.target.value }) },
               LOCATIONS.map((o) => h("option", { key: o.value, value: o.value }, o.label)))),
-          h(ParamField, { label: "类型" },
+          h(ParamField, { label: "类型", style: { flex: "0 1 95px" } },
             h("select", { style: styles.tableSelect, value: param.type, onChange: (e) => setField({ type: e.target.value }) },
               TYPES.map((o) => h("option", { key: o.value, value: o.value }, o.label)))),
-          h(ParamField, { label: "值来源" },
+          h(ParamField, { label: "值来源", style: { flex: "0 1 120px" } },
             h("select", { style: styles.tableSelect, value: param.source, onChange: (e) => setField({ source: e.target.value }) },
-              SOURCES.map((o) => h("option", { key: o.value, value: o.value }, o.label))))
-        ]),
-        h("div", { style: { display: "grid", gridTemplateColumns: "auto 1.8fr 1.2fr auto", gap: 8, alignItems: "end", marginTop: 8 } }, [
-          h(ParamField, { label: "必填" },
+              SOURCES.map((o) => h("option", { key: o.value, value: o.value }, o.label)))),
+          h(ParamField, { label: "必填", style: { flex: "0 0 auto" } },
             h("input", { type: "checkbox", checked: param.required, onChange: (e) => setField({ required: e.target.checked }) })),
-          h(ParamField, { label: "中文说明" },
+          h(ParamField, { label: "中文说明", style: { flex: "1 1 220px" } },
             h("input", { style: styles.tableInput, value: param.description, onChange: (e) => setField({ description: e.target.value }), placeholder: "中文说明" })),
-          h(ParamField, { label: "默认值" },
+          h(ParamField, { label: "默认值", style: { flex: "1 1 200px" } },
             h("input", { style: styles.tableInput, value: param.defaultValue, onChange: (e) => setField({ defaultValue: e.target.value }), placeholder: param.source === "credential" ? "凭据引用名" : param.source === "fixed" ? "固定值" : "默认值（Agent 未提供时）" })),
-          h("div", { style: { display: "flex", alignItems: "flex-end" } },
+          h("div", { style: { display: "flex", alignItems: "flex-end", flexShrink: 0 } },
             h("button", { type: "button", style: styles.button, onClick: onRemove }, "删除"))
         ]),
         canHaveChildren && h("div", { style: { marginTop: 8 } }, [

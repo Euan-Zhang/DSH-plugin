@@ -52,7 +52,7 @@ window.__ModuleLoader__.load({
       desc: { color: "var(--dsw-alias-label-secondary)", fontSize: 12, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
       btn: { border: "1px solid var(--dsw-alias-border-l2)", background: "var(--dsw-alias-bg-layer-2)", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12, color: "inherit" },
       btnDanger: { border: "1px solid var(--dsw-alias-state-error-primary)", color: "var(--dsw-alias-state-error-primary)", background: "transparent", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12 },
-      btnPrimary: { color: "var(--dsw-alias-button-primary-invert)", background: "var(--dsw-alias-button-primary-fill)", border: "1px solid var(--dsw-alias-button-primary-fill)", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12 },
+      btnPrimary: { color: "var(--dsw-alias-label-primary-inverted)", background: "var(--dsw-alias-button-primary-fill)", border: "1px solid var(--dsw-alias-button-primary-fill)", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12 },
       switch: { position: "relative", width: 36, height: 20, borderRadius: 999, border: "none", cursor: "pointer", background: "var(--dsw-alias-bg-layer-1)", padding: 0, flexShrink: 0 },
       switchOn: { background: "var(--dsw-alias-button-primary-fill)" },
       switchKnob: { position: "absolute", top: 2, left: 2, width: 16, height: 16, borderRadius: "50%", background: "#ffffff", transition: "left 0.15s" },
