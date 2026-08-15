@@ -1,0 +1,15 @@
+# DSH 皮肤管理器（双面包：host + client）。
+#
+# 这一行同时是 host 行（Loader 加载包的 lib/index.js：内置皮肤目录、
+# 皮肤文件校验器、已安装皮肤存储、/api/dsh-skins HTTP API 与内置资源路由）
+# 和 dsh.client 行（modules 的 node half 扫描 package.json 的 dsh.client
+# 声明，把 lib/client.js 加入浏览器 roster，在设置页左侧渲染“皮肤”页）。
+#
+# inject 声明 host 半部的硬依赖：webServer（HTTP API 与资源路由的载体）。
+# 已导入皮肤与当前选中皮肤直接持久化到 $DSH_HOME/profiles/skins/，不依赖
+# settings 命名空间，因此本插件只依赖 webServer，安装门槛最低。
+
+- insert:
+    - id: dsh-skin-manager
+      name: dsh-skin-manager
+      inject: [webServer]
